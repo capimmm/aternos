@@ -1,0 +1,47 @@
+name: Iniciar Servidor Aternos
+
+on:
+  # Permite que o workflow seja acionado por uma chamada de API
+  workflow_dispatch:
+
+jobs:
+  start-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências
+        run: npm install aternos-unofficial-api
+
+      - name: Iniciar o servidor no Aternos
+        env:
+          # As credenciais vêm dos "Secrets" do GitHub
+          ATERNOS_USER: ${{ secrets.ATERNOS_USER }}
+          ATERNOS_PASS: ${{ secrets.ATERNOS_PASS }}
+        run: |
+          node -e "
+            const Aternos = require('aternos-unofficial-api');
+            (async () => {
+              try {
+                console.log('Fazendo login...');
+                const cookies = await Aternos.loginToAternos(process.env.ATERNOS_USER, process.env.ATERNOS_PASS);
+                const { servers } = await Aternos.getServerList(cookies);
+                if (servers && servers.length > 0) {
+                  console.log('Iniciando servidor: ' + servers[0].name);
+                  await Aternos.manageServer(cookies, servers[0].id, 'start');
+                  console.log('Comando de início enviado!');
+                } else {
+                  console.log('Nenhum servidor encontrado.');
+                }
+              } catch (error) {
+                console.error('Erro:', error);
+                process.exit(1);
+              }
+            })();
+          "
